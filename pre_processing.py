@@ -25,7 +25,7 @@ def find_max_wav_len(wav_paths):
         step+=1
     return max_length
 
-def convert_wav(path=data_dir + "/segments/wavs", m4singer=False):
+def convert_wav(path=data_dir, max_wav_length=0):
     """
     Taken from the file pre-hubert.py
     I don't use the function itself to be able to manipulate it
@@ -35,8 +35,11 @@ def convert_wav(path=data_dir + "/segments/wavs", m4singer=False):
     print(path)
     hubert_model = HubertEncoder(hubert_mode='soft_hubert')
     wav_paths = get_end_file(path, ".wav")
-    max_len = find_max_wav_len(wav_paths) + 100
-    print(max_len)
+    if not max_wav_length:
+        max_len = find_max_wav_len(wav_paths) + 100
+    else:
+        max_len = max_wav_length
+    print('Maximum wav length', max_len)
     with tqdm(total=len(wav_paths)) as p_bar:
         p_bar.set_description('Processing HuBERT hidden space vectors')
         for wav_path in wav_paths:
@@ -44,3 +47,57 @@ def convert_wav(path=data_dir + "/segments/wavs", m4singer=False):
             if not os.path.exists(npy_path):
                 np.save(str(npy_path), hubert_model.encode(wav_path, max_len))
             p_bar.update(1)
+
+def train_test_split(path):
+    data_wavs = path + "wavs"
+    data_textgrids = path + "textgrids"
+    data_midis = path + "midis"
+    #create the train and test folders and put in them the wavs, textgrids and midis files, with files 2009, 2016, 2047, 2054, 2087 in the test folder
+    #create the train and test folders
+    train_dir = path + "train"
+    test_dir = path + "test"
+    os.mkdir(train_dir)
+    os.mkdir(test_dir)
+    #create the wavs, textgrids and midis folders
+    train_wavs = train_dir + "/wavs"
+    train_textgrids = train_dir + "/textgrids"
+    train_midis = train_dir + "/midis"
+    test_wavs = test_dir + "/wavs"
+    test_textgrids = test_dir + "/textgrids"
+    test_midis = test_dir + "/midis"
+    os.mkdir(train_wavs)
+    os.mkdir(train_textgrids)
+    os.mkdir(train_midis)
+    os.mkdir(test_wavs)
+    os.mkdir(test_textgrids)
+    os.mkdir(test_midis)
+    #put in them the wavs, textgrids and midis files
+    #put in the train folders
+    wav_paths = get_end_file(data_wavs, ".wav")
+    textgrid_paths = get_end_file(data_textgrids, ".TextGrid")
+    midi_paths = get_end_file(data_midis, ".midi")
+ 
+    for wav_path in wav_paths:
+        if "2009" in wav_path or "2016" in wav_path or "2047" in wav_path or "2054" in wav_path or "2087" in wav_path:
+            os.system("cp " + wav_path + " " + test_wavs)
+        else:
+            os.system("cp " + wav_path + " " + train_wavs)
+    for textgrid_path in textgrid_paths:
+        if "2009" in textgrid_path or "2016" in textgrid_path or "2047" in textgrid_path or "2054" in textgrid_path or "2087" in textgrid_path:
+            os.system("cp " + textgrid_path + " " + test_textgrids)
+        else:
+            os.system("cp " + textgrid_path + " " + train_textgrids)
+    for midi_path in midi_paths:
+        if "2009" in midi_path or "2016" in midi_path or "2047" in midi_path or "2054" in midi_path or "2087" in midi_path:
+            os.system("cp " + midi_path + " " + test_midis)
+        else:
+            os.system("cp " + midi_path + " " + train_midis)
+    print("train test split done")
+
+def __name__=="__main__":
+    #create the train test split
+    train_test_split(data_dir)
+    #convert the wavs files into hidden-hubert space vectors
+    max_wav_length = find_max_wav_len(data_dir + 'wavs') + 50
+    convert_wav(data_dir + 'tain/wavs', max_wav_length)
+    convert_wav(data_dir + 'test/wavs', max_wav_length)
