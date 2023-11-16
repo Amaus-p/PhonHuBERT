@@ -1,2 +1,7 @@
 checkpoints/
 data/
+__pycache__/
+checkpoints_done/
+bin_noeval/
+new_checkpoints/
+results/

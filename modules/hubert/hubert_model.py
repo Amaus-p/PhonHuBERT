@@ -219,7 +219,8 @@ def hubert_soft(
     Args:
         path (str): path of a pretrained model
     """
-    dev = torch.device("cuda:6" if torch.cuda.is_available() else "cpu")
+    # dev = torch.device("cuda:6" if torch.cuda.is_available() else "cpu")
+    dev = torch.device("cpu")
     hubert = HubertSoft()
     checkpoint = torch.load(path)
     consume_prefix_in_state_dict_if_present(checkpoint, "module.")
@@ -247,7 +248,8 @@ def get_units(hbt_soft, raw_wav_path, dev=torch.device('cuda:6'), max_wav_length
         wav16 = np.concatenate((wav16, zer))
         # print(len(wav16))
         assert len(wav16)==max_wav_length, f"The length of the wav file is too small, it should be of 1119839 but we have {len(wav)}. wav lgth {wav_lenght}, max wav lgth {max_wav_length}, sr {sr}"
-    dev = torch.device("cuda:6" if (dev == torch.device('cuda:6') and torch.cuda.is_available()) else "cpu")
+    # dev = torch.device("cuda:6" if (dev == torch.device('cuda:6') and torch.cuda.is_available()) else "cpu")
+    dev = torch.device("cpu")
     # torch.cuda.is_available() and torch.cuda.empty_cache()
     with torch.inference_mode():
         # print(len(wav16))

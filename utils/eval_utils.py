@@ -51,6 +51,9 @@ def display_test_results(nbr_errors):
         print(f'{name} : {nbr_er[0]} errors over {nbr_er[1]} phonemes, a ratio of {nbr_er[0]/nbr_er[1]:.2%}')
         total_nbr_errors+=nbr_er[0]
         total_nbr_phonemes+=nbr_er[1]
+    print(nbr_files)
+    print(total_nbr_errors)
+    print(total_nbr_phonemes)
     print('Mean absolute number of errors / mean number of phonemes: {:.4} / {:.4}, which represents a ratio of {:.2%}'.format(total_nbr_errors/nbr_files, total_nbr_phonemes/nbr_files, total_nbr_errors/total_nbr_phonemes))
     return total_nbr_errors/total_nbr_phonemes
 

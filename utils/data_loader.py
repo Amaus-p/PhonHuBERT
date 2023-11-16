@@ -48,7 +48,6 @@ class MusicDataLoader():
         self.use_ctc_onset = hparams['use_ctc_onset']
 
         if hparams['dataset_name']=='opencpop':
-            self.frames_per_sec = 50
             self.silence_phon = 'SP'
             if self.segmented:
                 self.tiers_to_get=['音素', '句子']
@@ -85,15 +84,28 @@ class MusicDataLoader():
             tiers_to_get=self.tiers_to_get,
             segmented=self.segmented,
             silence_phon=self.silence_phon,
-            frames_per_sec=self.frames_per_sec,
-            dataset_name=self.dataset_name
-        )
-        print('End creation of labels ')
-        hidden_space_data = clt.load_hidden_space_data(
-            wav_folder=self.data_root + self.wav_folder,
             dataset_name=self.dataset_name,
-            hparams=self.hparams,
-        ) 
+            is_test=self.is_test,
+        )
+        # print(type(translated_labeled_data['2001']))
+        print("this is the time")
+        # print(len(translated_labeled_data))
+        if self.hparams['use_hubert']:
+            print("Use hubert")
+            hidden_space_data = clt.load_hidden_space_data(
+                wav_folder=self.data_root + self.wav_folder,
+                dataset_name=self.dataset_name,
+                hparams=self.hparams,
+            ) 
+        elif self.hparams['use_mel']:
+            print("use mel")
+            hidden_space_data = clt.load_mel_space_data(
+                wav_folder=self.data_root + self.wav_folder,
+                dataset_name=self.dataset_name,
+                hparams=self.hparams,
+                is_test=self.is_test,
+            )        
+        # print(len(hidden_space_data))
         print('End get hidden_space_data')
         labeled_data = clt.add_label_to_data(
             translated_labeled_data, 
@@ -101,10 +113,14 @@ class MusicDataLoader():
             phon_list,
             silence_phon=self.silence_phon,
             silence_emb = embedded_phonemes[self.silence_phon],
+            hparams=self.hparams,
             is_test = self.is_test,
             ctc_model = self.use_ctc_onset,
             )
         print('End labeling data')
+
+        # print(len(labeled_data))
+
         if not self.is_test:
             val, train = clt.split_data(
                 labeled_data,

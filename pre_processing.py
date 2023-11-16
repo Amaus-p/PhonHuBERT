@@ -10,8 +10,11 @@ import matplotlib.pyplot as plt
 from preprocessing.hubertinfer import HubertEncoder
 from utils.infer_utils import get_end_file
 import librosa
+from pydub import AudioSegment
+from utils.constants import HParams
 
-data_dir = "data/opencpop/"
+
+data_dir = "./data/opencpop/"
 
 def find_max_wav_len(wav_paths):
     print("Finding max wav length")
@@ -28,6 +31,12 @@ def find_max_wav_len(wav_paths):
             max_length=length
         step+=1
     return max_length
+
+def padd_wav_with_silence(wav_path, max_length):
+    wav_audioseg = AudioSegment.from_wav(wav_path)
+    if wav_audioseg.duration_seconds<max_length:
+        wav_audioseg = wav_audioseg + AudioSegment.silent(duration=(max_length-wav_audioseg.duration_seconds)*1000)
+    wav_audioseg.export(wav_path.replace('.wav', '_padded.wav'), format="wav")
 
 def convert_wav(path=data_dir, max_wav_length=0):
     """
@@ -48,6 +57,7 @@ def convert_wav(path=data_dir, max_wav_length=0):
     with tqdm(total=len(wav_paths)) as p_bar:
         p_bar.set_description('Processing HuBERT hidden space vectors')
         for wav_path in wav_paths:
+            print(wav_path)
             npy_path = Path(wav_path).with_suffix(".npy")
             if not os.path.exists(npy_path):
                 np.save(str(npy_path), hubert_model.encode(wav_path, max_len))
@@ -115,11 +125,11 @@ def train_test_split(path):
                 os.system("cp " + midi_path + " " + train_midis)
     print("train test split done")
 
-def remove_hubert_files(data_dir):
-    print("Removing Hubert vectors")
+def remove_file(data_dir, extension):
+    print("Removing files")
     current_directory = os.getcwd()
     print(current_directory)
-    pattern = os.path.join(data_dir + 'PLEASE REMOVE THIS PART', 'wavs', '*.npy')
+    pattern = os.path.join(data_dir, 'wavs/*' + extension)
     print(pattern)
     files = glob.glob(pattern)
     print(files)
@@ -128,16 +138,43 @@ def remove_hubert_files(data_dir):
         print(f)
         os.remove(f)
 
+# def remove_hubert_files(data_dir):
+#     print("Removing Hubert vectors")
+#     current_directory = os.getcwd()
+#     print(current_directory)
+#     pattern = os.path.join(data_dir + 'PLEASE REMOVE THIS PART', 'wavs', '*.npy')
+#     print(pattern)
+#     files = glob.glob(pattern)
+#     print(files)
+#     #remove files from pattern
+#     for f in files:
+#         print(f)
+#         os.remove(f)
+
 if __name__ == '__main__':
     #create the train test split
-    train_test_split(data_dir)
-    #convert the wavs files into hidden-hubert space vectors
-    pattern = os.path.join(data_dir, 'wavs', '*.wav')
+    # print("Creating train test split")
+    # train_test_split(data_dir)
+    # convert the wavs files into hidden-hubert space vectors
+    # pattern = os.path.join(data_dir, 'wavs', '*.wav')
     # max_wav_length = find_max_wav_len(glob.glob(pattern)) + 50
-    max_wav_length = 5150259
-    print('Maximum wav length', max_wav_length)
-    train_dir = os.path.join(data_dir, 'train', 'wavs')
-    convert_wav(train_dir, max_wav_length)
-    test_dir = os.path.join(data_dir, 'test', 'wavs')
-    convert_wav(test_dir, max_wav_length)
+    # print(max_wav_length)
+    max_wav_length = 6923126
+    # max_wav_length = 3040007
+    # max_wav_length = 5150259
+    # print('Maximum wav length', max_wav_length)
+    # train_dir = os.path.join(data_dir, 'train', 'wavs')
+    # convert_wav(train_dir, max_wav_length)
+    # test_dir = os.path.join(data_dir, 'test', 'wavs')
+    # convert_wav(test_dir, max_wav_length)
+    hparams = HParams()
+    wav_paths = glob.glob(os.path.join(hparams['data_root_dir'], 'train/wavs', '*.wav'))
+    with tqdm(total=len(wav_paths)) as p_bar:
+        p_bar.set_description('padding wavs')
+        for wav_path in wav_paths:
+            padd_wav_with_silence(wav_path, hparams["max_length"])
+            p_bar.update(1)
+
+# remove_file(os.path.join(data_dir, 'train'), '_padded.wav')
+
 

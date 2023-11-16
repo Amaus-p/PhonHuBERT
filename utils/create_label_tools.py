@@ -266,7 +266,7 @@ def unify_length(segments: dict[str, list[tuple[float, float, str]]], max_durati
         seg.append((seg[-1][1], max_duration, silence_phoneme))
     return segments
 
-def sampling(segments: dict[str, list[tuple[float, float, str]]], frames_per_sec = 106):
+def sampling(segments: dict[str, list[tuple[float, float, str]]], hparams):
     """
     This function has the purpose of splitting the time for every sequence into frames 
 
@@ -294,8 +294,9 @@ def sampling(segments: dict[str, list[tuple[float, float, str]]], frames_per_sec
         ...
     }
     """
+
     framed_segments = {}
-    frame_time = 1/frames_per_sec
+    frame_time = 1/hparams["frames_per_sec"]
     for seg in segments:
         T_max = segments[seg][-1][1]
         # In framed_data I put for every frame, the phoneme that corresponds to the time of this frame. 
@@ -324,7 +325,10 @@ def sampling(segments: dict[str, list[tuple[float, float, str]]], frames_per_sec
                     end_frame+=frame_time
             elif start_frame >= end_phon:
                 phon_number+=1
+        # print(len(framed_data)/T_max)
+        # print(hparams["frames_per_sec"])
         framed_segments[seg] = framed_data
+    print("Frame segments sampled")
     return framed_segments
 
 def translation_to_embedding_space(framed_segments: dict[str, list[tuple[float, float, str]]], embedded_phonemes: dict[str, int]):
@@ -348,7 +352,28 @@ def translation_to_embedding_space(framed_segments: dict[str, list[tuple[float, 
             translated_segmentation[seg_name].append(embedded_phonemes[phon])
     return translated_segmentation
 
-def create_labels_for_hidden(hparams, textgrid_folder: str, tiers_to_get: str, segmented: bool, silence_phon: str, frames_per_sec: int, dataset_name: str):
+def int_to_tensor_prep(translated_labeled_data):
+    """
+    Input:
+        translated_labeled_data:
+            Dictionnay of
+                key: name of the segment
+                value: list of tuples (start, end, translated_to_embedding_space_phoneme of dim 1) 
+    Output:
+        Dictionnay of
+            key: name of the segment
+            value: list of tuples (start, end, translated_to_embedding_space_phoneme of dim 60)
+            """
+    new_translated_labeled_data = {}
+    for seg_name, data in translated_labeled_data.items():
+        new_translated_labeled_data[seg_name]=[]
+        for d in data:
+            zeros = torch.zeros(60)
+            zeros[d] = 1
+            new_translated_labeled_data[seg_name].append(zeros)
+    return new_translated_labeled_data
+
+def create_labels_for_hidden(hparams, textgrid_folder: str, tiers_to_get: str, segmented: bool, silence_phon: str, dataset_name: str, is_test: bool = False):
     """
     Main function for the creation of labels
 
@@ -361,8 +386,6 @@ def create_labels_for_hidden(hparams, textgrid_folder: str, tiers_to_get: str, s
             if we segment the big audios into small parts or not
         silence_phon:
             element used for padding
-        frames_per_sec:
-            number of frames per second
         dataset_name:
             name of the dataset we are using. The management of the data is different from one dataset to another
 
@@ -394,9 +417,25 @@ def create_labels_for_hidden(hparams, textgrid_folder: str, tiers_to_get: str, s
         print("The embedded phonemes list doesn't exist, creating it")
         embedded_phonemes = create_set_phonemes_and_embedding(phon_list)
         np.save(embedded_phonemes_path, embedded_phonemes)
-    unify_length(start_stop_phon, hparams["max_length"], silence_phon)
-    framed_segments = sampling(start_stop_phon, frames_per_sec)
+    if (hparams['use_mel'] and not is_test) or not hparams['use_mel']:
+        unify_length(start_stop_phon, hparams["max_length"], silence_phon)
+    framed_segments = sampling(start_stop_phon, hparams)
+    print("End sampling")
     translated_labeled_data = translation_to_embedding_space(framed_segments, embedded_phonemes)
+    print("End translation")
+    if hparams['use_same_dim_pred_target'] and not is_test:
+        translated_labeled_data = int_to_tensor_prep(translated_labeled_data)
+        print("End focal loss prep")
+    i=0
+    # for it in translated_labeled_data.items():
+    #     i+=1
+    #     # print(len(it[1]))
+    #     for e in it:
+    #         # print(e)
+    #         # print(type(e))
+    #         # print(e.shape)
+    #     if i>2:
+    #         break
     return translated_labeled_data, phon_list, embedded_phonemes
 
 def load_hidden_space_data(wav_folder:str, dataset_name:str, hparams: dict):
@@ -413,6 +452,7 @@ def load_hidden_space_data(wav_folder:str, dataset_name:str, hparams: dict):
     """
     print('WAV folder, loading the hidden space data', wav_folder)
     npy_paths = glob.glob(wav_folder + '*npy')
+    npy_paths = [path for path in npy_paths if not path.endswith('_mel.npy')]    
     # wav_paths = get_end_file(wav_folder, "npy")
     print('Number of files', len(npy_paths))
     data = {}
@@ -424,8 +464,57 @@ def load_hidden_space_data(wav_folder:str, dataset_name:str, hparams: dict):
                 data[get_name(path, dataset_name, '.npy')] = [np.load(path, ), x]
             else:
                 data[get_name(path, dataset_name, '.npy')] = np.load(path, )
+
             p_bar.update(1)
     return data
+
+def load_mel_space_data(wav_folder:str, dataset_name:str, hparams: dict, is_test: bool = False):
+    """Transforms the contents of a wav file into a series of mel spec frames."""
+    print('iciciciciiiiiiiiiiiiiiiiiiiiii')
+    extension = '_padded.wav' if not is_test else '.wav'
+    wav_paths = glob.glob(wav_folder + f'*{extension}')
+    print('paths')
+    print('paths oui', wav_paths)
+    print('Number of files', len(wav_paths))
+    data = {}
+    max_mel_length = int(hparams['max_length']*hparams['coef_for_mel'])
+    with tqdm(total=len(wav_paths)) as p_bar:
+        p_bar.set_description('Processing')
+        for path in wav_paths:
+            print(path)
+            mel_path = path.replace(extension, '_mel.npy')
+            if not os.path.exists(mel_path):
+                y, sr = librosa.load(path, sr=None)
+                # print(sr)
+                # print(y.shape[0]/sr)
+                t = librosa.get_duration(y=y, sr=sr)
+                # print(t)
+                # exit()
+                mel = get_mel(y, hparams)
+                mel = mel[:max_mel_length]
+                np.save(path.replace(extension, '_mel.npy'), mel)
+            else:
+                mel = np.load(mel_path)
+            data[get_name(path, dataset_name, extension)] = mel
+        p_bar.update(1)
+    return data
+
+def get_mel(y, hparams):
+    mel = librosa.feature.melspectrogram(
+        y=y,
+        sr=hparams['sample_rate'],
+        n_fft=hparams['spec_n_fft'],
+        hop_length=hparams['spec_hop_length'],
+        fmin=hparams['spec_fmin'],
+        n_mels=hparams['spec_n_bins_mel'],
+        htk=hparams['spec_mel_htk'],
+    ).astype(np.float32)
+    # Transpose so that the data is in [frame, bins] format.
+    mel = mel.T
+    if hparams['spec_log_scaling']:
+        # log scaling
+        mel = 10 * np.log10(1e-10 + mel)
+    return mel
 
 def create_onset_ctc_list(phon_seq:list, max_ctc_length:int):
     ctc_target = [phon_seq[0]+2]
@@ -440,7 +529,7 @@ def create_onset_ctc_list(phon_seq:list, max_ctc_length:int):
             max_ctc_length = len(ctc_target)
     return ctc_target, onsets_target, max_ctc_length
 
-def add_label_to_data(translated_labeled_data: dict, hidden_space_data: dict, phon_list: list, silence_phon:str, silence_emb:int, is_test: bool = False, ctc_model = False):
+def add_label_to_data(translated_labeled_data: dict, hidden_space_data: dict, phon_list: list, silence_phon:str, silence_emb:int, hparams, is_test: bool = False, ctc_model = False):
     """
     Input: 
         take the segmeted labeled data audios 
@@ -454,11 +543,18 @@ def add_label_to_data(translated_labeled_data: dict, hidden_space_data: dict, ph
     """
     train_data = []
     max_ctc_length = 0
-    print(silence_phon, silence_emb)
     assert silence_emb == 55, f'The silence embedding is not the one expected. It is {silence_emb} instead of 55'
     for segment_name, matrix in hidden_space_data.items():
-        assert len(matrix) == len(translated_labeled_data[segment_name]), f"The length of the hidden space is of {len(matrix)}, while the length of the translated_labeled_data is of {len(translated_labeled_data[segment_name])}. {segment_name}"
         if is_test:
+            assert abs(len(matrix)-len(translated_labeled_data[segment_name]))<5, f"The length of the hidden space is of {len(matrix)}, while the length of the translated_labeled_data is of {len(translated_labeled_data[segment_name])}. {segment_name}"
+            if len(matrix)>len(translated_labeled_data[segment_name]):
+                matrix = matrix[:len(translated_labeled_data[segment_name])]
+            else:
+                translated_labeled_data[segment_name] = translated_labeled_data[segment_name][:len(matrix)]
+        else:
+            assert len(matrix) == len(translated_labeled_data[segment_name]), f"The length of the hidden space is of {len(matrix)}, while the length of the translated_labeled_data is of {len(translated_labeled_data[segment_name])}. {segment_name}"
+        if is_test:
+            # train_data.append([np.array(matrix), torch.stack(translated_labeled_data[segment_name]), segment_name])
             gt = translated_labeled_data[segment_name]
             start = 0
             end = len(gt)
@@ -473,8 +569,17 @@ def add_label_to_data(translated_labeled_data: dict, hidden_space_data: dict, ph
             ctc_target, onsets_lst, max_ctc_length = create_onset_ctc_list(translated_labeled_data[segment_name], max_ctc_length)
             train_data.append([np.array(matrix), onsets_lst, np.array(translated_labeled_data[segment_name]), ctc_target, segment_name])
         else:
-            train_data.append([np.array(matrix), np.array(translated_labeled_data[segment_name]), segment_name])
-    if ctc_model:
+            # print(translated_labeled_data[segment_name])
+            # print(type(translated_labeled_data[segment_name]))
+            # print(type(translated_labeled_data[segment_name][0]))
+            # print(type(torch.stack(translated_labeled_data[segment_name])))
+            # exit()
+            if hparams['use_same_dim_pred_target'] and not is_test:
+                train_data.append([np.array(matrix), torch.stack(translated_labeled_data[segment_name]), segment_name])
+            else:
+                train_data.append([np.array(matrix), np.array(translated_labeled_data[segment_name]), segment_name])
+
+    if ctc_model: 
         for i in range(len(train_data)):
             train_data[i][3] = np.pad(train_data[i][3], (0, max_ctc_length-len(train_data[i][3])), 'constant', constant_values=(0, silence_emb+2))
     # print(np.array(train_data).shape)
@@ -484,6 +589,9 @@ def add_label_to_data(translated_labeled_data: dict, hidden_space_data: dict, ph
     #         f.write(f'{train_data[0][2][i]}\n')
     # f.close()
     # exit()
+    # print(train_data[0])
+    # for d in train_data[0]: 
+    #     print(type(d))
     return train_data
 
 def split_data(data: dict, val_split_rate: int):
@@ -495,8 +603,8 @@ def split_data(data: dict, val_split_rate: int):
     rd.shuffle(data)
     train_data = data[val_size:]
     val_data = data[:val_size]
-    print(len(val_data))
-    print(len(train_data))
+    # print(len(val_data))
+    # print(len(train_data))
 
     return val_data, train_data
 

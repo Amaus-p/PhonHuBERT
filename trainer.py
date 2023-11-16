@@ -14,6 +14,8 @@ from utils.data_loader import MusicDataLoader
 import argparse
 import time
 
+# torch.backends.cudnn.init()
+
 model_names = ['LSTM', 'RNN', 'Local_Attention', 'Multihead_Attention']
 
 def main_phoneme_seq_cal_train(hparams, device = 'cuda'):
@@ -36,16 +38,20 @@ def main_phoneme_seq_cal_train(hparams, device = 'cuda'):
         hparams)
     print('Training the model...')
     base_name= f"{hparams['model_name'] }_{hparams['lr']}_{hparams['epochs']}_{hparams['n_layers']}_{str(time.time()).split('.')[0]}"
+    print(type(train_loader))
     if hparams['use_ctc_onset']:
+        print("We use CTC onset")
         model = train_model_ctc(hparams, device, train_loader, val_loader, model, optimizer, base_name)
     else:
+        print("We don't use CTC onset")
         model = train_model(hparams, device, train_loader, val_loader, model, criterion, optimizer, base_name)
     print("Training ended")
     return
 
 if __name__ == '__main__': 
     print("We are in the main")
-    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu' 
+
+    DEVICE = "cuda:7" if torch.cuda.is_available() else 'cpu' 
     print(f"We use cuda:{DEVICE}")
 
     hparams = HParams()

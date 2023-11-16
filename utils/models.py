@@ -9,7 +9,7 @@ import random as rd
 from sklearn.feature_extraction.text import CountVectorizer
 
 #locql imports
-from local_attention import LocalAttention
+# from local_attention import LocalAttention
 import torch.nn.functional as F
 
 #https://blog.floydhub.com/long-short-term-memory-from-zero-to-hero-with-pytorch/
@@ -18,6 +18,7 @@ import torch.nn.functional as F
 class LSTM(nn.Module):
     def __init__(self, hparams, device, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self.hparams = hparams
         self.input_dim = hparams['input_dim']
         self.output_dim = hparams['output_dim']
         self.hidden_dim = hparams['input_dim']// hparams['n_layers'] if hparams['new_new_model'] else hparams['hidden_dim']
@@ -31,12 +32,15 @@ class LSTM(nn.Module):
         self.lstm = nn.LSTM(self.input_dim, self.hidden_dim, self.n_layers, batch_first=hparams['batch_first'], bidirectional=self.bidirectional)
         self.fully_connected = nn.Linear(self.hidden_dim * (1+self.bidirectional), self.output_dim)
         self.dropout = nn.Dropout(hparams['drop_prob'])
+        self.softmax = nn.Softmax(dim=2)
     
     def forward(self, x, hc):
         hc = tuple([e.data for e in hc])
         lstm_out, hc = self.lstm(x, hc)
         out = self.fully_connected(lstm_out)
         out = self.dropout(out)
+        if self.hparams['softmax']:
+            out = self.softmax(out)
         return out, hc
     
     def init_hidden(self, batch_size):
@@ -225,3 +229,74 @@ class CTC_CE_Loss(nn.Module):
         losses = {"total": total_loss, "onset_ce_loss":onset_ce_loss, "phon_ce_loss":phon_ce_loss, "ctc_loss":ctc_loss}
 
         return onset_out, phon_out, [onset_hc, phon_hc] if not self.hparams['model_name'] == 'CNN' else [phon_hc], losses
+
+class B_LSTM(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, drop_prob, n_layers, batch_first, bidirectional, device, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.n_layers = n_layers
+        self.batch_first = batch_first
+        self.bidirectional = bidirectional
+        self.device = device
+        self.lstm = nn.LSTM(self.input_dim, self.hidden_dim, self.n_layers, batch_first=self.batch_first, bidirectional=self.bidirectional)
+        self.fc = nn.Linear(hidden_dim * (1+self.bidirectional), output_dim)
+        self.dropout = nn.Dropout(drop_prob)
+    
+    def forward(self, x, hc):
+        hc = tuple([e.data for e in hc])
+        out, hc = self.lstm(x, hc)
+        out = self.dropout(out)
+        out = self.fc(out)
+        return out, hc
+    
+    def init_hidden(self, batch_size):
+        return (
+            torch.zeros((1+self.bidirectional)*self.n_layers, batch_size, self.hidden_dim, device=self.device), 
+            torch.zeros((1+self.bidirectional)*self.n_layers, batch_size, self.hidden_dim, device=self.device)
+            )
+
+class DOUBLE_LSTM(nn.Module):
+    def __init__(self, hparams, device, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.n_layers = hparams['n_layers']
+        self.batch_size = hparams['batch_size']
+        self.seq_len = hparams['seq_length']
+        self.bidirectional = hparams['bidirectional']
+
+        self.input_dim_F = hparams['input_dim']     
+        self.hidden_dim_F = hparams['input_dim']// hparams['n_layers'] if hparams['new_new_model'] else hparams['hidden_dim']
+        self.output_dim_F = hparams['output_dim']
+
+        self.input_dim_K = 1
+        self.hidden_dim_K = 16
+        self.output_dim_K = 1
+
+        self.device = device
+
+        self.lstm_F = B_LSTM(self.input_dim_F, self.hidden_dim_F, self.output_dim_F, hparams['drop_prob'], self.n_layers, hparams['batch_first'], self.bidirectional, self.device)
+        self.lstm_K = B_LSTM(self.input_dim_K, self.hidden_dim_K, self.output_dim_K, hparams['drop_prob'], self.n_layers, hparams['batch_first'], self.bidirectional, self.device)
+
+        self.init_hidden(self.batch_size)
+    
+    def forward(self, x):                           #x: B (batch), F (features), T (time)
+        hc_F = tuple([e.data for e in self.hc_F])
+        hc_K = tuple([e.data for e in self.hc_K])
+
+        out_F, hc_F = self.lstm_F(x, hc_F)
+        out_F.unsqueeze_(2)                         #out_F: B, F, 1, T
+        out_F.permute(0, 3, 2, 1)                   #out_F: B, T, 1, F
+
+        out_K, hc_K = self.lstm_K(out_F, hc_K)
+        out_K.squeeze_(2)                           #out_K: B, T, F
+        out_K.permute(0, 2, 1)                      #out_K: B, F, T
+
+        self.hc_F = hc_F
+        self.hc_K = hc_K
+        return out_K, hc_F, hc_K
+    
+    def init_hidden(self, batch_size):
+        self.hc_F = self.lstm_F.init_hidden(batch_size)
+        self.hc_K = self.lstm_K.init_hidden(batch_size)
+    

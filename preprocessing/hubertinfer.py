@@ -22,7 +22,8 @@ class HubertEncoder:
         if not contentVec:
             if hparams['use_cn_hubert'] or self.hubert_mode == 'cn_hubert':
                 pt_path = "checkpoints/cn_hubert/chinese-hubert-base-fairseq-ckpt.pt"
-                self.dev = torch.device("cuda:6")
+                self.dev = torch.device('cpu')
+                # self.dev = torch.device("cuda:6")
                 self.hbt_model = load_cn_model(pt_path)
             else:
                 if onnx:
@@ -34,7 +35,8 @@ class HubertEncoder:
                         self.use_gpu = hparams['hubert_gpu']
                     else:
                         self.use_gpu = True
-                    self.dev = torch.device("cuda:6" if self.use_gpu and torch.cuda.is_available() else "cpu")
+                    self.dev = torch.device('cpu')
+                    # self.dev = torch.device("cuda:6" if self.use_gpu and torch.cuda.is_available() else "cpu")
                     self.hbt_model = hubert_soft(str(pt_path)).to(self.dev)
         else:
             if not (hparams['use_cn_hubert'] or self.hubert_mode == 'cn_hubert'):
@@ -44,7 +46,8 @@ class HubertEncoder:
                     else:
                         self.use_gpu = True
             print("we use content vec")
-            self.dev = torch.device("cuda:6" if self.use_gpu and torch.cuda.is_available() else "cpu")
+            self.dev = torch.device('cpu')
+            # self.dev = torch.device("cuda:6" if self.use_gpu and torch.cuda.is_available() else "cpu")
             models, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([pt_path])
             self.hbt_model = models[0].to(self.dev)
         print(f"| load 'model' from '{pt_path}'")
@@ -66,8 +69,8 @@ class HubertEncoder:
             print('not get-units-3')
             units = get_cn_hubert_units(self.hbt_model, wav_path, self.dev).cpu().numpy()[0]
         else:
-            units = get_units(self.hbt_model, wav_path, torch.device('cuda:6'), max_wav_length).cpu().numpy()[0]
+            # units = get_units(self.hbt_model, wav_path, torch.device('cuda:6'), max_wav_length).cpu().numpy()[0]
             # print(len(units))
-            # units = get_units(self.hbt_model, wav_path, self.dev, max_wav_length).cpu().numpy()[0]
+            units = get_units(self.hbt_model, wav_path, self.dev, max_wav_length).cpu().numpy()[0]
             # torch.device('cuda')
         return units  # [T,256]

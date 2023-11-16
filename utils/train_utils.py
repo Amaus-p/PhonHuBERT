@@ -6,6 +6,7 @@ import torch.nn as nn
 import pandas as pd
 from datetime import datetime
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 def create_checkpoint_dir(hparams):
@@ -26,7 +27,8 @@ def save_checkpoint(model, hparams, optimizer, epoch, train_loss, val_loss, chec
         'trainign_loss': train_loss,
         'validation_loss': val_loss
     }  
-    checkpoint_path = os.path.join(hparams['checkpoint_dir'], checkpoint_name + '.pth')  
+    # checkpoint_path = os.path.join(hparams['checkpoint_dir'], checkpoint_name + '.pth')  
+    checkpoint_path = os.path.join(checkpoint_name + '.pth')  
     torch.save(checkpoint, checkpoint_path)
 
 
@@ -95,6 +97,9 @@ def train_model(
     valid_loss_min = np.Inf
     ep_min = 0
     model.train()  
+    if hparams["scheduler"]:
+        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=hparams['scheduler_patience'], verbose=True)
+
     checkpoint_dir = create_checkpoint_dir(hparams)
 
     print(checkpoint_dir)
@@ -102,14 +107,21 @@ def train_model(
         if hparams['hidden']:
             hc = model.init_hidden(hparams['batch_size'])
             for inputs, labels, _ in train_loader:
+                if hparams['use_same_dim_pred_target']:
+                    labels = labels.permute(0,2,1)
                 counter += 1
                 model.zero_grad()
                 inputs, labels = inputs.to(device), labels.to(device)
                 output, hc = model(inputs, hc)
-
                 tansposed_output = torch.transpose(output[:,:,:60], 1, 2)
+
                 new_loss = criterion(tansposed_output, labels)
-                loss = new_loss
+
+                if hparams['use_cross_entropy']:
+                    loss = new_loss
+                else :
+                    loss = torch.sum(new_loss)
+
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), hparams['clip'])
                 optimizer.step() 
@@ -121,17 +133,24 @@ def train_model(
                         inp, lab = inp.to(device), lab.to(device)
                         out, val_h = model(inp, val_h)
                         tansposed_out = torch.transpose(out[:,:,:60], 1, 2)
+                        if hparams['use_same_dim_pred_target']:
+                            lab = lab.permute(0,2,1)
                         new_val_loss = criterion(tansposed_out, lab)
-                        val_loss = new_val_loss
+                        if hparams['use_cross_entropy']:
+                            val_loss = new_val_loss
+                        else :
+                            val_loss = torch.sum(new_val_loss)
                         val_losses.append(val_loss.item())    
                     model.train()
                     print("Epoch: {}/{}...".format(ep+1, hparams['epochs']),
                         "Step: {}...".format(counter),
-                        "Loss: {:.6f}...".format(new_loss.item()),
+                        "Loss: {:.6f}...".format(loss.item()),
                         "Val Loss: {:.6f}".format(np.mean(val_losses)),
                         "Current min val loss: {:.6f}".format(valid_loss_min),
                         "Epoch of min val loss: {}".format(ep_min),
                         f"| Ckp dir: {checkpoint_dir.split('/')[-1]}")
+                    if hparams["scheduler"]:
+                        scheduler.step(np.mean(val_losses))
                     if np.mean(val_losses) < valid_loss_min:
                         save_checkpoint(model, hparams, optimizer, ep, loss, val_losses, f'{checkpoint_dir}/{base_name}')
                         print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(valid_loss_min,np.mean(val_losses)))
