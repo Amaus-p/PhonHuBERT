@@ -4,6 +4,10 @@ This repository is under Apache 2.0 License - see the [LICENSE](LICENSE) file fo
 This repository contains the code for PhonHuBERT model: an Aligned Phoneme Sequence Transcription tool for Singing Voice Synthesis dataset automatic annotation.
 In this work, we use HuBERT model as an encoder to generate hidden-space vectors (which would have clustered singing information) as it was done in this GitHub repository [DiffSVCS](https://github.com/prophesier/diff-svc). Our model is based on a serie of BLSTM layers to decode the encoded information by HuBERT and on MSE loss for the training part.
 
+The firgure below is a summary PhonHuBERT model.
+
+![PhonHuBERT](https://github.com/Amaus-p/PhonHuBERT/PhonHuBERT_and_legend.jpg?raw=true)
+
 
 ### Environment Preparation
 All the experiments have been done in a conda environment with the Python version 3.9.16. All the dependencies can be found in the requirements.txt file.
@@ -36,9 +40,13 @@ For the inference and evaluation of the model, you can use the file [infer.py](i
 CUDA_VISIBLE_DEVICES=1,2 python infer.py
 ```
 
+We evaluated PhonHuBERT on the Phoneme Error Rate (PER). Our results displayed in the figure below.
+
+![Results PhonHuBERT](https://github.com/Amaus-p/PhonHuBERT/results_phonhubert.jpg?raw=true)
+
 ### Results example
 
-The results are composed of the name of the transcribed audiofile, the hyperparameters used for the training and then the predictions of the model. 
+The results files are composed of the name of the transcribed audiofile, the hyperparameters used for the training and then the predictions of the model. 
 In order to evaluate our model on the phonemes themselves, we cut the silences before and after the singing part to only evaluate the part where the singer really produces sounds. 
 For the results, the 3 values which have the higher predictions probability in the predicted probability vector v. For a frame t, if v1 is the phoneme with the highest probability, v2 the second highest, v3 the third highest and gt the ground truth value, the results we display are in the following format:
 
