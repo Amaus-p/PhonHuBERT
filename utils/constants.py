@@ -8,18 +8,23 @@ def HParams(
 ) -> Dict[str, any]:
     model_names = ['LSTM', 'double_LSTM']
     dataset_names = ['opencpop']
+
     use_ctc_onset = False
     new_new_model = True
+
+    #Select the decoder model
     use_hubert = True
     use_mel = False
-    use_mse_loss= True  #True
-    use_focal_loss = False #False
+
+    #Select the loss function
+    use_mse_loss= True  #False
+    use_focal_loss = False #True
     use_cross_entropy = False  #True
 
-    softmax = False
+    #Softmax is included in the cross entropy loss
+    softmax = True
 
-    if softmax:
-        assert use_mse_loss, 'Must use mse loss with softmax'
+    assert use_mse_loss and softmax or not use_mse_loss, 'Must use softmax with mse loss'    
 
     assert not (use_mse_loss and use_focal_loss), 'Cannot use both mse loss and focal loss'
     assert not (use_mse_loss and use_cross_entropy), 'Cannot use both mse loss and cross entropy'

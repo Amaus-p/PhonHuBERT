@@ -68,7 +68,6 @@ def train_test_split(path):
     data_textgrids = path + "textgrids"
     data_midis = path + "midis"
     #create the train and test folders and put in them the wavs, textgrids and midis files, with files 2009, 2016, 2047, 2054, 2087 in the test folder
-    #create the train and test folders
     train_dir = path + "train"
     test_dir = path + "test"
 
@@ -153,20 +152,20 @@ def remove_file(data_dir, extension):
 
 if __name__ == '__main__':
     #create the train test split
-    # print("Creating train test split")
-    # train_test_split(data_dir)
+    print("Creating train test split")
+    train_test_split(data_dir)
     # convert the wavs files into hidden-hubert space vectors
-    # pattern = os.path.join(data_dir, 'wavs', '*.wav')
-    # max_wav_length = find_max_wav_len(glob.glob(pattern)) + 50
-    # print(max_wav_length)
-    max_wav_length = 6923126
+    pattern = os.path.join(data_dir, 'wavs', '*.wav')
+    max_wav_length = find_max_wav_len(glob.glob(pattern)) + 50
+    print(max_wav_length)
+    # max_wav_length = 6923126
     # max_wav_length = 3040007
     # max_wav_length = 5150259
-    # print('Maximum wav length', max_wav_length)
-    # train_dir = os.path.join(data_dir, 'train', 'wavs')
-    # convert_wav(train_dir, max_wav_length)
-    # test_dir = os.path.join(data_dir, 'test', 'wavs')
-    # convert_wav(test_dir, max_wav_length)
+    print('Maximum wav length', max_wav_length)
+    train_dir = os.path.join(data_dir, 'train', 'wavs')
+    convert_wav(train_dir, max_wav_length)
+    test_dir = os.path.join(data_dir, 'test', 'wavs')
+    convert_wav(test_dir, max_wav_length)
     hparams = HParams()
     wav_paths = glob.glob(os.path.join(hparams['data_root_dir'], 'train/wavs', '*.wav'))
     with tqdm(total=len(wav_paths)) as p_bar:
