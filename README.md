@@ -6,8 +6,7 @@ In this work, we use HuBERT model as an encoder to generate hidden-space vectors
 
 The firgure below is a summary PhonHuBERT model.
 
-![PhonHuBERT](https://github.com/Amaus-p/PhonHuBERT/PhonHuBERT_and_legend.jpg?raw=true)
-
+![PhonHuBERT](https://github.com/Amaus-p/PhonHuBERT/blob/main/PhonHuBERT_and_legend.png?raw=true)
 
 ### Environment Preparation
 All the experiments have been done in a conda environment with the Python version 3.9.16. All the dependencies can be found in the requirements.txt file.
@@ -42,7 +41,7 @@ CUDA_VISIBLE_DEVICES=1,2 python infer.py
 
 We evaluated PhonHuBERT on the Phoneme Error Rate (PER). Our results displayed in the figure below.
 
-![Results PhonHuBERT](https://github.com/Amaus-p/PhonHuBERT/results_phonhubert.jpg?raw=true)
+![Results PhonHuBERT](https://github.com/Amaus-p/PhonHuBERT/blob/main/results_phonhubert.png?raw=true)
 
 ### Results example
 
