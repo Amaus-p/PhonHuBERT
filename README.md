@@ -4,7 +4,7 @@ This repository is under Apache 2.0 License - see the [LICENSE](LICENSE) file fo
 This repository contains the code for PhonHuBERT model: an Aligned Phoneme Sequence Transcription tool for Singing Voice Synthesis dataset automatic annotation.
 In this work, we use HuBERT model as an encoder to generate hidden-space vectors (which would have clustered singing information) as it was done in this GitHub repository [DiffSVCS](https://github.com/prophesier/diff-svc). Our model is based on a serie of BLSTM layers to decode the encoded information by HuBERT and on MSE loss for the training part.
 
-The firgure below is a summary PhonHuBERT model.
+The figure below is a summary PhonHuBERT model.
 
 ![PhonHuBERT](https://github.com/Amaus-p/PhonHuBERT/blob/main/PhonHuBERT_and_legend.png?raw=true)
 
