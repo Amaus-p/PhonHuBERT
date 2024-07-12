@@ -149,6 +149,7 @@ zh ia e | zh
 
 If you found this work helpful please consider citing our paper:
 
+```
 @InProceedings{10.1007/978-981-97-4399-5_12,
 author="Prat, Amaury
 and Yang, Runxuan
@@ -164,6 +165,7 @@ pages="123--132",
 abstract="In recent years, deep learning has gradually replaced traditional mathematical inference-based architectures, such as Hidden Markov Chains in Singing Voice Synthesis (SVS) systems, which led to an increase in the demand for accurately labeled data. In response to this need, this work introduces an Aligned Phoneme Sequence Transcription (APST) model for automatic song datasets annotation, called PhonHuBERT. This model uses HuBERT - a pre-trained self-supervised model for voice features classification - as an encoder, combined with Bidirectional Long-Short Term Memory (BLSTM) networks as a decoder.",
 isbn="978-981-97-4399-5"
 }
+```
 
 
 
