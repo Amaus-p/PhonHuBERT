@@ -1,5 +1,8 @@
 This repository is under Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
 
+Our paper: "PhonHuBERT: A Phoneme Transcription Tool for Song Datasets" 
+Can be found on this [link](https://link.springer.com/chapter/10.1007/978-981-97-4399-5_12)
+
 # PhonHuBERT
 This repository contains the code for PhonHuBERT model: an Aligned Phoneme Sequence Transcription tool for Singing Voice Synthesis dataset automatic annotation.
 In this work, we use HuBERT model as an encoder to generate hidden-space vectors (which would have clustered singing information) as it was done in this GitHub repository [DiffSVCS](https://github.com/prophesier/diff-svc). Our model is based on a serie of BLSTM layers to decode the encoded information by HuBERT and on MSE loss for the training part.
@@ -15,7 +18,7 @@ To install the dependencies, run `pip -r install requirements.txt`
 
 ### Data Preparation
 
-To reproduce our results, you first need the OpenCPOP dataset, which can be downloaded following this link [opencpop](https://cloud.tsinghua.edu.cn/d/2870f80cb2c04b298d29/).
+To reproduce our results, you first need the OpenCPOP dataset, which can be downloaded following this link [opencpop](https://wenet.org.cn/opencpop/download/).
 
 After downloading the dataset, ensure the OpenCPOP dataset is saved under `/data/opencpop`. You can then run the following command to prepare the data:
 
